@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Globe, Search, BookOpen, Link, ExternalLink, Clock, Trash2, Eye, Loader2 } from 'lucide-react';
+import { User } from '@supabase/supabase-js';
+import { AuthWrapper } from './components/AuthWrapper';
+import { supabase } from './lib/supabase';
 
 interface ScrapedResult {
   id: string;
@@ -10,26 +13,46 @@ interface ScrapedResult {
   timestamp: string;
 }
 
-function App() {
+function WebScraperApp({ user }: { user: User }) {
   const [url, setUrl] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [currentResult, setCurrentResult] = useState<ScrapedResult | null>(null);
   const [savedResults, setSavedResults] = useState<ScrapedResult[]>([]);
   const [showSavedResults, setShowSavedResults] = useState(false);
+  const [loadingSavedResults, setLoadingSavedResults] = useState(false);
 
-  // Load saved results from localStorage on component mount
-  useEffect(() => {
-    const saved = localStorage.getItem('scrapedResults');
-    if (saved) {
-      setSavedResults(JSON.parse(saved));
+  // Load saved results from Supabase
+  const loadSavedResults = async () => {
+    setLoadingSavedResults(true);
+    try {
+      const { data, error } = await supabase
+        .from('scraped_results')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const formattedResults: ScrapedResult[] = data.map(item => ({
+        id: item.id,
+        url: item.url,
+        title: item.title || 'Untitled',
+        headings: item.headings || [],
+        links: item.links || [],
+        timestamp: item.created_at,
+      }));
+
+      setSavedResults(formattedResults);
+    } catch (error: any) {
+      console.error('Error loading saved results:', error);
+    } finally {
+      setLoadingSavedResults(false);
     }
-  }, []);
+  };
 
-  // Save results to localStorage whenever savedResults changes
   useEffect(() => {
-    localStorage.setItem('scrapedResults', JSON.stringify(savedResults));
-  }, [savedResults]);
+    loadSavedResults();
+  }, []);
 
   const validateUrl = (url: string): boolean => {
     try {
@@ -59,54 +82,58 @@ function App() {
     setShowSavedResults(false);
 
     try {
-      // Simulate API call to Supabase backend
-      // In a real implementation, this would be:
-      // const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/scrape-website`, {
-      //   method: 'POST',
-      //   headers: {
-      //     'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-      //     'Content-Type': 'application/json',
-      //   },
-      //   body: JSON.stringify({ url }),
-      // });
-      
-      await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate API delay
-      
-      const mockResult: ScrapedResult = {
-        id: Date.now().toString(),
-        url,
-        title: `Sample Website - ${new URL(url).hostname}`,
-        headings: [
-          'Welcome to Our Website',
-          'About Us',
-          'Our Services',
-          'Contact Information',
-          'Latest News',
-          'Product Features'
-        ],
-        links: [
-          { text: 'Home', url: '/' },
-          { text: 'About', url: '/about' },
-          { text: 'Services', url: '/services' },
-          { text: 'Contact', url: '/contact' },
-          { text: 'Blog', url: '/blog' },
-          { text: 'Privacy Policy', url: '/privacy' }
-        ],
-        timestamp: new Date().toISOString()
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('Not authenticated');
+      }
+
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/scrape-website`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ url }),
+      });
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to scrape website');
+      }
+
+      const scrapedResult: ScrapedResult = {
+        id: result.data.id,
+        url: result.data.url,
+        title: result.data.title,
+        headings: result.data.headings,
+        links: result.data.links,
+        timestamp: result.data.timestamp,
       };
 
-      setCurrentResult(mockResult);
-      setSavedResults(prev => [mockResult, ...prev]);
-    } catch (err) {
-      setError('Failed to scrape website. Please try again.');
+      setCurrentResult(scrapedResult);
+      setSavedResults(prev => [scrapedResult, ...prev]);
+    } catch (err: any) {
+      setError(err.message || 'Failed to scrape website. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const clearSavedResults = () => {
-    setSavedResults([]);
-    setShowSavedResults(false);
+  const clearSavedResults = async () => {
+    try {
+      const { error } = await supabase
+        .from('scraped_results')
+        .delete()
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      setSavedResults([]);
+      setShowSavedResults(false);
+    } catch (error: any) {
+      console.error('Error clearing saved results:', error);
+    }
   };
 
   const viewSavedResult = (result: ScrapedResult) => {
@@ -125,7 +152,7 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+    <>
       {/* Header */}
       <header className="bg-white shadow-sm border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -141,7 +168,12 @@ function App() {
             </div>
             <div className="flex items-center space-x-4">
               <button
-                onClick={() => setShowSavedResults(!showSavedResults)}
+                onClick={() => {
+                  setShowSavedResults(!showSavedResults);
+                  if (!showSavedResults) {
+                    loadSavedResults();
+                  }
+                }}
                 className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
               >
                 <Eye className="h-4 w-4 mr-2" />
@@ -223,7 +255,12 @@ function App() {
               )}
             </div>
             
-            {savedResults.length === 0 ? (
+            {loadingSavedResults ? (
+              <div className="text-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-blue-600 mx-auto mb-2" />
+                <p className="text-gray-500">Loading saved results...</p>
+              </div>
+            ) : savedResults.length === 0 ? (
               <p className="text-gray-500 text-center py-8">No saved results yet. Scrape a website to get started!</p>
             ) : (
               <div className="grid gap-4">
@@ -325,7 +362,15 @@ function App() {
           </div>
         )}
       </main>
-    </div>
+    </>
+  );
+}
+
+function App() {
+  return (
+    <AuthWrapper>
+      {(user) => <WebScraperApp user={user} />}
+    </AuthWrapper>
   );
 }
 
