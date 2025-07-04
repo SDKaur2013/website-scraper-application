@@ -114,6 +114,7 @@ Deno.serve(async (req: Request) => {
           headings: savedResult.headings,
           links: savedResult.links,
           aiSummary: savedResult.ai_summary,
+          analysisStatus: savedResult.analysis_status,
           timestamp: savedResult.created_at,
         },
       }),
