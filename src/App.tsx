@@ -434,10 +434,23 @@ function WebScraperApp({ user }: { user: User }) {
                       currentResult.links.map((link, index) => (
                         <div
                           key={index}
-                          className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 flex items-center justify-between hover:bg-emerald-100 transition-colors"
+                          className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 hover:bg-emerald-100 transition-colors"
                         >
-                          <span className="text-sm text-gray-700 truncate flex-1 mr-3">{link.text}</span>
-                          <span className="text-xs text-emerald-600 font-mono truncate max-w-xs">{link.url}</span>
+                          <div className="flex items-center justify-between">
+                            <a
+                              href={link.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-sm text-gray-700 hover:text-emerald-700 truncate flex-1 mr-3 font-medium hover:underline transition-colors group"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {link.text || link.url}
+                            </a>
+                            <div className="flex items-center space-x-2">
+                              <span className="text-xs text-emerald-600 font-mono truncate max-w-xs">{link.url}</span>
+                              <ExternalLink className="h-3 w-3 text-emerald-600 flex-shrink-0" />
+                            </div>
+                          </div>
                         </div>
                       ))
                     ) : (
