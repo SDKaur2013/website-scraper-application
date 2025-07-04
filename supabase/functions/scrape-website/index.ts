@@ -76,8 +76,13 @@ Deno.serve(async (req: Request) => {
     let aiSummary = '';
     let analysisStatus = 'pending';
     
-    const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+    // Try multiple environment variable names for OpenAI API key
+    const openaiApiKey = Deno.env.get('OPENAI_API_KEY') || 
+                         Deno.env.get('VITE_OPENAI_API_KEY') ||
+                         Deno.env.get('OPENAI_SECRET_KEY');
+    
     console.log('Environment check - OpenAI API key available:', !!openaiApiKey);
+    console.log('Available environment variables:', Object.keys(Deno.env.toObject()).filter(key => key.includes('OPENAI')));
     console.log('Content available for analysis:', !!scrapedData.content.trim());
     console.log('Content length:', scrapedData.content.length);
     
