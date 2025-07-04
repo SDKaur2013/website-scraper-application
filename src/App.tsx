@@ -103,7 +103,7 @@ function WebScraperApp({ user }: { user: User }) {
     
     // Validate the normalized URL
     if (!validateUrl(normalizedUrl)) {
-      setError('Please enter a valid URL (e.g., example.com or https://example.com)');
+      setError('Please enter a valid URL (e.g., google.com, www.example.com, or https://example.com)');
       return;
     }
 
@@ -253,11 +253,11 @@ function WebScraperApp({ user }: { user: User }) {
               </label>
               <div className="relative">
                 <input
-                  type="url"
+                  type="text"
                   id="url"
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
-                  placeholder="https://example.com"
+                  placeholder="google.com, www.example.com, or https://example.com"
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-gray-900 placeholder-gray-400"
                   disabled={isLoading}
                 />
