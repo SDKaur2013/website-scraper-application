@@ -18,6 +18,8 @@ export type Database = {
           user_id: string;
           url: string;
           title: string | null;
+          content: string | null;
+          ai_summary: string | null;
           headings: any[];
           links: any[];
           created_at: string;
@@ -28,6 +30,8 @@ export type Database = {
           user_id: string;
           url: string;
           title?: string | null;
+          content?: string | null;
+          ai_summary?: string | null;
           headings?: any[];
           links?: any[];
           created_at?: string;
@@ -38,6 +42,8 @@ export type Database = {
           user_id?: string;
           url?: string;
           title?: string | null;
+          content?: string | null;
+          ai_summary?: string | null;
           headings?: any[];
           links?: any[];
           created_at?: string;

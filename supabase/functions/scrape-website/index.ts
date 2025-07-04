@@ -8,8 +8,10 @@ const corsHeaders = {
 
 interface ScrapedData {
   title: string;
+  content: string;
   headings: string[];
   links: { text: string; url: string }[];
+  aiSummary?: string;
 }
 
 Deno.serve(async (req: Request) => {
@@ -70,6 +72,17 @@ Deno.serve(async (req: Request) => {
     // Parse HTML and extract data
     const scrapedData = parseHtml(html, targetUrl.toString());
     
+    // Generate AI summary if OpenAI API key is available and content exists
+    let aiSummary = '';
+    if (Deno.env.get('OPENAI_API_KEY') && scrapedData.content.trim()) {
+      try {
+        aiSummary = await generateAISummary(scrapedData.content, scrapedData.title);
+      } catch (error) {
+        console.error('AI summary generation failed:', error);
+        // Continue without summary if AI fails
+      }
+    }
+    
     // Save to database
     const { data: savedResult, error: dbError } = await supabaseClient
       .from('scraped_results')
@@ -77,8 +90,11 @@ Deno.serve(async (req: Request) => {
         user_id: user.id,
         url: targetUrl.toString(),
         title: scrapedData.title,
+        content: scrapedData.content,
         headings: scrapedData.headings,
         links: scrapedData.links,
+        ai_summary: aiSummary || null,
+        analysis_status: aiSummary ? 'completed' : 'pending',
       })
       .select()
       .single();
@@ -94,8 +110,10 @@ Deno.serve(async (req: Request) => {
           id: savedResult.id,
           url: savedResult.url,
           title: savedResult.title,
+          content: savedResult.content,
           headings: savedResult.headings,
           links: savedResult.links,
+          aiSummary: savedResult.ai_summary,
           timestamp: savedResult.created_at,
         },
       }),
@@ -120,13 +138,79 @@ Deno.serve(async (req: Request) => {
   }
 });
 
+async function generateAISummary(content: string, title: string): Promise<string> {
+  const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+  if (!openaiApiKey) {
+    throw new Error('OpenAI API key not configured');
+  }
+
+  // Truncate content if too long (OpenAI has token limits)
+  const maxContentLength = 8000; // Roughly 2000 tokens
+  const truncatedContent = content.length > maxContentLength 
+    ? content.substring(0, maxContentLength) + '...'
+    : content;
+
+  const prompt = `Please provide a concise summary of the following webpage content in maximum 200 words. Focus on the key points, main topics, and important takeaways. Make it informative and well-structured.
+
+Title: ${title}
+
+Content: ${truncatedContent}
+
+Summary:`;
+
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${openaiApiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'gpt-3.5-turbo',
+      messages: [
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ],
+      max_tokens: 300,
+      temperature: 0.7,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`OpenAI API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.choices[0]?.message?.content?.trim() || 'Summary could not be generated.';
+}
+
 function parseHtml(html: string, baseUrl: string): ScrapedData {
-  // Simple HTML parsing using regex (for basic extraction)
-  // In production, you might want to use a proper HTML parser
-  
   // Extract title
   const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
   const title = titleMatch ? titleMatch[1].trim() : 'Untitled';
+  
+  // Extract main content text
+  let content = html;
+  
+  // Remove script and style tags
+  content = content.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
+  content = content.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+  content = content.replace(/<noscript[^>]*>[\s\S]*?<\/noscript>/gi, '');
+  
+  // Remove HTML tags and get text content
+  content = content.replace(/<[^>]+>/g, ' ');
+  
+  // Clean up whitespace
+  content = content.replace(/\s+/g, ' ').trim();
+  
+  // Remove common navigation and footer text patterns
+  content = content.replace(/\b(home|about|contact|privacy|terms|cookies?|login|register|sign up|sign in)\b/gi, '');
+  
+  // Limit content length for processing
+  if (content.length > 10000) {
+    content = content.substring(0, 10000);
+  }
   
   // Extract headings (h1-h6)
   const headingMatches = html.match(/<h[1-6][^>]*>([^<]+)<\/h[1-6]>/gi) || [];
@@ -176,6 +260,7 @@ function parseHtml(html: string, baseUrl: string): ScrapedData {
   
   return {
     title,
+    content,
     headings,
     links,
   };
