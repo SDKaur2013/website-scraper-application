@@ -3,6 +3,7 @@ import { Search, BookOpen, Link, ExternalLink, Clock, Trash2, Eye, Loader2, Chec
 import { User } from '@supabase/supabase-js';
 import { AuthWrapper } from './components/AuthWrapper';
 import { supabase } from './lib/supabase';
+import { useTheme } from './contexts/ThemeContext';
 
 interface ScrapedResult {
   id: string;
@@ -14,6 +15,7 @@ interface ScrapedResult {
 }
 
 function WebScraperApp({ user }: { user: User }) {
+  const { theme } = useTheme();
   const [url, setUrl] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -308,7 +310,7 @@ function WebScraperApp({ user }: { user: User }) {
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800 border border-green-500/30">
                 <img 
-                  src="/Cyber Scraper - Project Logo.jpeg" 
+                  src={theme === 'light' ? "/Cyber Scraper - Project Logo - BW.jpeg" : "/Cyber Scraper - Project Logo.jpeg"}
                   alt="Cyber Scraper Logo" 
                   className="w-full h-full object-cover"
                 />
@@ -683,7 +685,7 @@ function WebScraperApp({ user }: { user: User }) {
           <div className="text-center py-12">
             <div className="mx-auto w-24 h-24 bg-gradient-to-br from-green-500/20 to-green-600/20 rounded-full flex items-center justify-center mb-4 border border-green-500/30">
               <img 
-                src="/Cyber Scraper - Project Logo.jpeg" 
+                src={theme === 'light' ? "/Cyber Scraper - Project Logo - BW.jpeg" : "/Cyber Scraper - Project Logo.jpeg"}
                 alt="Cyber Scraper Logo" 
                 className="w-16 h-16 object-cover rounded-full"
               />
