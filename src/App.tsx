@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Globe, Search, BookOpen, Link, ExternalLink, Clock, Trash2, Eye, Loader2, CheckCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { Globe, Search, BookOpen, Link, ExternalLink, Clock, Trash2, Eye, Loader2, CheckCircle, ChevronDown, ChevronUp, Square, CheckSquare, X } from 'lucide-react';
 import { User } from '@supabase/supabase-js';
 import { AuthWrapper } from './components/AuthWrapper';
 import { supabase } from './lib/supabase';
@@ -22,6 +22,9 @@ function WebScraperApp({ user }: { user: User }) {
   const [savedResults, setSavedResults] = useState<ScrapedResult[]>([]);
   const [showSavedResults, setShowSavedResults] = useState(false);
   const [loadingSavedResults, setLoadingSavedResults] = useState(false);
+  const [selectedResults, setSelectedResults] = useState<Set<string>>(new Set());
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [deletingResults, setDeletingResults] = useState<Set<string>>(new Set());
   const [expandedSections, setExpandedSections] = useState({
     headings: true,
     links: true,
@@ -156,6 +159,10 @@ function WebScraperApp({ user }: { user: User }) {
   };
 
   const clearSavedResults = async () => {
+    if (!confirm('Are you sure you want to delete all saved results? This action cannot be undone.')) {
+      return;
+    }
+
     try {
       const { error } = await supabase
         .from('scraped_results')
@@ -173,7 +180,102 @@ function WebScraperApp({ user }: { user: User }) {
     }
   };
 
+  const deleteSelectedResults = async () => {
+    if (selectedResults.size === 0) return;
+    
+    const count = selectedResults.size;
+    if (!confirm(`Are you sure you want to delete ${count} selected result${count > 1 ? 's' : ''}? This action cannot be undone.`)) {
+      return;
+    }
+
+    setDeletingResults(new Set(selectedResults));
+    
+    try {
+      const { error } = await supabase
+        .from('scraped_results')
+        .delete()
+        .in('id', Array.from(selectedResults));
+
+      if (error) throw error;
+
+      setSavedResults(prev => prev.filter(result => !selectedResults.has(result.id)));
+      setSelectedResults(new Set());
+      setIsSelectionMode(false);
+      setSuccessMessage(`${count} result${count > 1 ? 's' : ''} deleted successfully!`);
+    } catch (error: any) {
+      console.error('Error deleting selected results:', error);
+      setError('Failed to delete selected results. Please try again.');
+    } finally {
+      setDeletingResults(new Set());
+    }
+  };
+
+  const deleteIndividualResult = async (resultId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    if (!confirm('Are you sure you want to delete this result? This action cannot be undone.')) {
+      return;
+    }
+
+    setDeletingResults(new Set([resultId]));
+    
+    try {
+      const { error } = await supabase
+        .from('scraped_results')
+        .delete()
+        .eq('id', resultId);
+
+      if (error) throw error;
+
+      setSavedResults(prev => prev.filter(result => result.id !== resultId));
+      setSelectedResults(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(resultId);
+        return newSet;
+      });
+      setSuccessMessage('Result deleted successfully!');
+    } catch (error: any) {
+      console.error('Error deleting result:', error);
+      setError('Failed to delete result. Please try again.');
+    } finally {
+      setDeletingResults(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(resultId);
+        return newSet;
+      });
+    }
+  };
+
+  const toggleResultSelection = (resultId: string) => {
+    setSelectedResults(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(resultId)) {
+        newSet.delete(resultId);
+      } else {
+        newSet.add(resultId);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedResults.size === savedResults.length) {
+      setSelectedResults(new Set());
+    } else {
+      setSelectedResults(new Set(savedResults.map(result => result.id)));
+    }
+  };
+
+  const exitSelectionMode = () => {
+    setIsSelectionMode(false);
+    setSelectedResults(new Set());
+  };
+
   const viewSavedResult = (result: ScrapedResult) => {
+    if (isSelectionMode) {
+      toggleResultSelection(result.id);
+      return;
+    }
     setCurrentResult(result);
     setShowSavedResults(false);
     // Reset expanded sections when viewing a new result
@@ -317,15 +419,68 @@ function WebScraperApp({ user }: { user: User }) {
               <div className="flex items-center space-x-3">
                 <Clock className="h-5 w-5 text-indigo-600" />
                 <h2 className="text-lg font-semibold text-gray-900">Saved Results</h2>
+               {savedResults.length > 0 && (
+                 <span className="text-sm text-gray-500">
+                   {isSelectionMode && selectedResults.size > 0 && `(${selectedResults.size} selected)`}
+                 </span>
+               )}
               </div>
-              {savedResults.length > 0 && (
-                <button
-                  onClick={clearSavedResults}
-                  className="inline-flex items-center px-3 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Clear All
-                </button>
+             {savedResults.length > 0 && (
+               <div className="flex items-center space-x-2">
+                 {isSelectionMode ? (
+                   <>
+                     <button
+                       onClick={toggleSelectAll}
+                       className="inline-flex items-center px-3 py-2 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+                     >
+                       {selectedResults.size === savedResults.length ? (
+                         <CheckSquare className="h-4 w-4 mr-2" />
+                       ) : (
+                         <Square className="h-4 w-4 mr-2" />
+                       )}
+                       {selectedResults.size === savedResults.length ? 'Deselect All' : 'Select All'}
+                     </button>
+                     {selectedResults.size > 0 && (
+                       <button
+                         onClick={deleteSelectedResults}
+                         disabled={deletingResults.size > 0}
+                         className="inline-flex items-center px-3 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                       >
+                         {deletingResults.size > 0 ? (
+                           <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                         ) : (
+                           <Trash2 className="h-4 w-4 mr-2" />
+                         )}
+                         Delete Selected ({selectedResults.size})
+                       </button>
+                     )}
+                     <button
+                       onClick={exitSelectionMode}
+                       className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+                     >
+                       <X className="h-4 w-4 mr-2" />
+                       Cancel
+                     </button>
+                   </>
+                 ) : (
+                   <>
+                     <button
+                       onClick={() => setIsSelectionMode(true)}
+                       className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+                     >
+                       <CheckSquare className="h-4 w-4 mr-2" />
+                       Select
+                     </button>
+                     <button
+                       onClick={clearSavedResults}
+                       className="inline-flex items-center px-3 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                     >
+                       <Trash2 className="h-4 w-4 mr-2" />
+                       Clear All
+                     </button>
+                   </>
+                 )}
+               </div>
               )}
             </div>
             
@@ -341,16 +496,55 @@ function WebScraperApp({ user }: { user: User }) {
                 {savedResults.map((result) => (
                   <div
                     key={result.id}
-                    className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 hover:border-gray-300 transition-all cursor-pointer group"
+                    className={`border rounded-lg p-4 transition-all cursor-pointer group relative ${
+                      selectedResults.has(result.id)
+                        ? 'border-blue-300 bg-blue-50'
+                        : 'border-gray-200 hover:bg-gray-50 hover:border-gray-300'
+                    } ${deletingResults.has(result.id) ? 'opacity-50' : ''}`}
                     onClick={() => viewSavedResult(result)}
                   >
-                    <div className="flex items-start justify-between">
+                    <div className="flex items-start space-x-3">
+                      {isSelectionMode && (
+                        <div className="flex-shrink-0 mt-1">
+                          {selectedResults.has(result.id) ? (
+                            <CheckSquare className="h-5 w-5 text-blue-600" />
+                          ) : (
+                            <Square className="h-5 w-5 text-gray-400" />
+                          )}
+                        </div>
+                      )}
                       <div className="flex-1">
-                        <h3 className="font-medium text-gray-900 mb-1 group-hover:text-blue-600 transition-colors">{result.title}</h3>
+                        <h3 className={`font-medium mb-1 transition-colors ${
+                          selectedResults.has(result.id) 
+                            ? 'text-blue-900' 
+                            : 'text-gray-900 group-hover:text-blue-600'
+                        }`}>
+                          {result.title}
+                        </h3>
                         <p className="text-sm text-blue-600 mb-2 truncate">{result.url}</p>
                         <p className="text-xs text-gray-500">{formatTimestamp(result.timestamp)}</p>
                       </div>
-                      <ExternalLink className="h-4 w-4 text-gray-400 mt-1 group-hover:text-blue-600 transition-colors" />
+                      <div className="flex items-center space-x-2 flex-shrink-0">
+                        {!isSelectionMode && (
+                          <button
+                            onClick={(e) => deleteIndividualResult(result.id, e)}
+                            disabled={deletingResults.has(result.id)}
+                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                            title="Delete this result"
+                          >
+                            {deletingResults.has(result.id) ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-4 w-4" />
+                            )}
+                          </button>
+                        )}
+                        <ExternalLink className={`h-4 w-4 mt-1 transition-colors ${
+                          selectedResults.has(result.id)
+                            ? 'text-blue-600'
+                            : 'text-gray-400 group-hover:text-blue-600'
+                        }`} />
+                      </div>
                     </div>
                   </div>
                 ))}
