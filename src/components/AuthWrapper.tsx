@@ -82,7 +82,7 @@ export function AuthWrapper({ children }: AuthWrapperProps) {
           <div className="text-center mb-8">
             <div className="w-16 h-16 mx-auto mb-4 rounded-full overflow-hidden bg-gray-700 border border-green-500/30 flex items-center justify-center">
               <img 
-                src="/public/Cyber Scraper - Project Logo.jpeg" 
+                src="/Cyber Scraper - Project Logo.jpeg" 
                 alt="Cyber Scraper Logo" 
                 className="w-12 h-12 object-cover rounded-full"
               />
