@@ -11,6 +11,7 @@ interface ScrapedResult {
   title: string;
   content?: string;
   aiSummary?: string;
+  analysisStatus?: string;
   headings: string[];
   links: { text: string; url: string; }[];
   timestamp: string;
@@ -51,6 +52,7 @@ function WebScraperApp({ user }: { user: User }) {
         title: item.title || 'Untitled',
         content: item.content,
         aiSummary: item.ai_summary,
+        analysisStatus: item.analysis_status,
         headings: item.headings || [],
         links: item.links || [],
         timestamp: item.created_at,
@@ -150,6 +152,7 @@ function WebScraperApp({ user }: { user: User }) {
         title: result.data.title,
         content: result.data.content,
         aiSummary: result.data.aiSummary,
+        analysisStatus: result.data.analysisStatus,
         headings: result.data.headings,
         links: result.data.links,
         timestamp: result.data.timestamp,
@@ -603,9 +606,17 @@ function WebScraperApp({ user }: { user: User }) {
                     <h3 className="font-semibold text-gray-900 dark:text-white">
                       {currentResult.aiSummary ? 'AI Summary' : 'Content Preview'}
                     </h3>
-                    {currentResult.aiSummary && (
+                    {currentResult.aiSummary ? (
                       <span className="text-xs bg-blue-100 dark:bg-blue-800 text-blue-700 dark:text-blue-300 px-2 py-1 rounded-full font-medium">
                         Powered by OpenAI
+                      </span>
+                    ) : currentResult.analysisStatus === 'processing' ? (
+                      <span className="text-xs bg-yellow-100 dark:bg-yellow-800 text-yellow-700 dark:text-yellow-300 px-2 py-1 rounded-full font-medium">
+                        Processing...
+                      </span>
+                    ) : (
+                      <span className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-2 py-1 rounded-full font-medium">
+                        Raw Content
                       </span>
                     )}
                   </div>
@@ -624,7 +635,7 @@ function WebScraperApp({ user }: { user: User }) {
                         </p>
                         <div className="mt-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700/50 rounded-lg">
                           <p className="text-sm text-yellow-700 dark:text-yellow-300">
-                            <strong>Note:</strong> AI summary is not available. Configure OpenAI API key in environment variables to enable AI-powered summaries.
+                            <strong>Note:</strong> AI summary is not available. Configure OpenAI API key to enable AI-powered summaries.
                           </p>
                         </div>
                       </div>
