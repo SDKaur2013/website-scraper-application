@@ -208,7 +208,7 @@ function WebScraperApp({ user }: { user: User }) {
                 <Globe className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-gray-900">CyberScraper</h1>
+                <h1 className="text-xl font-bold text-gray-900">Cyber Scraper</h1>
                 <p className="text-sm text-gray-500">Advanced website content extraction</p>
               </div>
             </div>
