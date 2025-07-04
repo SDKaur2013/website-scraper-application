@@ -45,7 +45,7 @@ export function ThemeProvider({ children, user }: ThemeProviderProps) {
           .from('user_preferences')
           .select('theme')
           .eq('user_id', user.id)
-          .single();
+          .maybeSingle();
 
         if (error && error.code !== 'PGRST116') {
           // PGRST116 is "not found" error, which is expected for new users
@@ -65,6 +65,8 @@ export function ThemeProvider({ children, user }: ThemeProviderProps) {
             .upsert({
               user_id: user.id,
               theme: systemTheme,
+            }, {
+              onConflict: 'user_id'
             });
         }
       } catch (error) {
@@ -104,6 +106,8 @@ export function ThemeProvider({ children, user }: ThemeProviderProps) {
           .upsert({
             user_id: user.id,
             theme: newTheme,
+          }, {
+            onConflict: 'user_id'
           });
       } catch (error) {
         console.error('Error saving theme preference:', error);
