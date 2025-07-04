@@ -187,7 +187,7 @@ Please provide a summary that captures the essence and main points of this conte
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'gpt-3.5-turbo',
+      model: 'gpt-4o-mini',
       messages: [
         {
           role: 'user',
