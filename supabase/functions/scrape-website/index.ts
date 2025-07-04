@@ -76,10 +76,15 @@ Deno.serve(async (req: Request) => {
     let aiSummary = '';
     let analysisStatus = 'pending';
     
-    if (Deno.env.get('OPENAI_API_KEY') && scrapedData.content.trim()) {
+    const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+    console.log('Environment check - OpenAI API key available:', !!openaiApiKey);
+    console.log('Content available for analysis:', !!scrapedData.content.trim());
+    console.log('Content length:', scrapedData.content.length);
+    
+    if (openaiApiKey && scrapedData.content.trim()) {
       try {
         console.log('Generating AI summary for content length:', scrapedData.content.length);
-        aiSummary = await generateAISummary(scrapedData.content, scrapedData.title);
+        aiSummary = await generateAISummary(scrapedData.content, scrapedData.title, openaiApiKey);
         analysisStatus = 'completed';
         console.log('AI summary generated successfully');
       } catch (error) {
@@ -88,8 +93,12 @@ Deno.serve(async (req: Request) => {
         // Continue without summary if AI fails
       }
     } else {
-      console.log('OpenAI API key available:', !!Deno.env.get('OPENAI_API_KEY'));
-      console.log('Content available:', !!scrapedData.content.trim());
+      if (!openaiApiKey) {
+        console.log('OpenAI API key not found in environment variables');
+      }
+      if (!scrapedData.content.trim()) {
+        console.log('No content available for AI analysis');
+      }
     }
     
     // Save to database
@@ -148,13 +157,13 @@ Deno.serve(async (req: Request) => {
   }
 });
 
-async function generateAISummary(content: string, title: string): Promise<string> {
-  const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
-  if (!openaiApiKey) {
-    throw new Error('OpenAI API key not configured');
-  }
-
+async function generateAISummary(content: string, title: string, openaiApiKey: string): Promise<string> {
+  console.log('Starting AI summary generation...');
   console.log('Using OpenAI API key (first 10 chars):', openaiApiKey.substring(0, 10) + '...');
+
+  if (!openaiApiKey || openaiApiKey.trim() === '') {
+    throw new Error('OpenAI API key is empty or not provided');
+  }
 
   // Truncate content if too long (OpenAI has token limits)
   const maxContentLength = 12000; // Roughly 3000 tokens
