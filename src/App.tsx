@@ -78,6 +78,16 @@ function WebScraperApp({ user }: { user: User }) {
     }
   };
 
+  const normalizeUrl = (inputUrl: string): string => {
+    let normalizedUrl = inputUrl.trim();
+    
+    // If URL doesn't start with http:// or https://, add https://
+    if (!normalizedUrl.match(/^https?:\/\//i)) {
+      normalizedUrl = `https://${normalizedUrl}`;
+    }
+    
+    return normalizedUrl;
+  };
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -88,10 +98,17 @@ function WebScraperApp({ user }: { user: User }) {
       return;
     }
 
-    if (!validateUrl(url)) {
-      setError('Please enter a valid URL');
+    // Normalize the URL by adding protocol if missing
+    const normalizedUrl = normalizeUrl(url);
+    
+    // Validate the normalized URL
+    if (!validateUrl(normalizedUrl)) {
+      setError('Please enter a valid URL (e.g., example.com or https://example.com)');
       return;
     }
+
+    // Update the input field with the normalized URL
+    setUrl(normalizedUrl);
 
     setIsLoading(true);
     setCurrentResult(null);
@@ -109,7 +126,7 @@ function WebScraperApp({ user }: { user: User }) {
           'Authorization': `Bearer ${session.access_token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ url: normalizedUrl }),
       });
 
       const result = await response.json();
