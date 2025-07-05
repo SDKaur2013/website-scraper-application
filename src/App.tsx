@@ -319,7 +319,7 @@ function WebScraperApp({ user }: { user: User }) {
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800 border border-green-500/30">
                 <img 
-                  src={theme === 'light' ? "/Cyber Scraper - Project Logo - BW.jpeg" : "/Cyber Scraper - Project Logo.jpeg"}
+                  src={theme === 'light' ? "/Cyber Scraper - Project Logo - BW.png" : "/Cyber Scraper - Project Logo.png"}
                   alt="Cyber Scraper Logo" 
                   className="w-full h-full object-cover"
                 />
@@ -748,7 +748,7 @@ function WebScraperApp({ user }: { user: User }) {
           <div className="text-center py-12">
             <div className="mx-auto w-24 h-24 bg-gradient-to-br from-green-500/20 to-green-600/20 rounded-full flex items-center justify-center mb-4 border border-green-500/30">
               <img 
-                src={theme === 'light' ? "/Cyber Scraper - Project Logo - BW.jpeg" : "/Cyber Scraper - Project Logo.jpeg"}
+                src={theme === 'light' ? "/Cyber Scraper - Project Logo - BW.png" : "/Cyber Scraper - Project Logo.png"}
                 alt="Cyber Scraper Logo" 
                 className="w-16 h-16 object-cover rounded-full"
               />
